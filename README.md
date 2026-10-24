@@ -228,3 +228,7 @@ npm run build:ui       # 重新构建前端（改过 src/ui/client 后）
 ## License
 
 [MIT](LICENSE) © 2026 ToMySoul
+
+- 版本记录：[CHANGELOG.md](CHANGELOG.md)
+- 贡献指南：[CONTRIBUTING.md](CONTRIBUTING.md)
+- 安全政策：[SECURITY.md](SECURITY.md)
