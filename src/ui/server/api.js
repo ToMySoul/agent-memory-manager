@@ -15,7 +15,7 @@ const templates = require('../../lib/templates.js');
 const zip = require('../../lib/zip.js');
 const gitbackup = require('../../lib/gitbackup.js');
 const resources = require('../../lib/resources.js');
-const { pickFolder } = require('../../lib/pickfolder.js');
+const { pickFolder, pickFiles } = require('../../lib/pickfolder.js');
 
 function json(res, code, obj) {
   const body = JSON.stringify(obj);
@@ -107,6 +107,7 @@ const ROUTES = [
   ['POST', '/api/adapters/install-skill', 'skillInstall'],
   ['GET', '/api/search', 'search'],
   ['POST', '/api/system/pick-folder', 'pickFolder'],
+  ['POST', '/api/system/pick-file', 'pickFile'],
   ['GET', '/api/backup.zip', 'backup'],
   ['GET', '/api/backup/status', 'backupGitStatus'],
   ['POST', '/api/backup/repo/init', 'backupRepoInit'],
@@ -345,6 +346,12 @@ async function handleApi(req, res, url, stateStore) {
       case 'pickFolder': {
         // 弹出系统文件夹选择窗口（不阻塞其他请求；用户取消返回 canceled）
         const r = await pickFolder();
+        return json(res, 200, r);
+      }
+
+      case 'pickFile': {
+        // 选择一个或多个文件 → 前端取其所在目录作为项目（支持批量添加）
+        const r = await pickFiles();
         return json(res, 200, r);
       }
 

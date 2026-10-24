@@ -24,7 +24,7 @@ export default function Sidebar() {
   const [openModal, setOpenModal] = useState(false);
   const [path, setPath] = useState('');
   const [busy, setBusy] = useState(false);
-  const [picking, setPicking] = useState(false);
+  const [picking, setPicking] = useState('');
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -33,8 +33,8 @@ export default function Sidebar() {
     return () => window.removeEventListener('amm:open-project', onOpen);
   }, []);
 
-  async function doPick() {
-    setPicking(true);
+  async function doPickFolder() {
+    setPicking('folder');
     try {
       const r = await api.post('/api/system/pick-folder', {});
       if (r.error) showToast(r.error, 'err');
@@ -43,7 +43,34 @@ export default function Sidebar() {
     } catch (e) {
       showToast(e.message, 'err');
     } finally {
-      setPicking(false);
+      setPicking('');
+    }
+  }
+
+  async function doPickFiles() {
+    setPicking('file');
+    try {
+      const r = await api.post('/api/system/pick-file', {});
+      if (r.error) { showToast(r.error, 'err'); return; }
+      if (r.canceled) { showToast('已取消选择'); return; }
+      // 取每个文件所在目录（去重）作为项目；多个 = 批量添加
+      const dirs = [...new Set((r.paths || []).map((p) => p.replace(/[\\/][^\\/]+$/, '')))];
+      if (dirs.length === 1) {
+        setPath(dirs[0]);
+        showToast('已定位目录，点「打开」确认');
+      } else if (dirs.length > 1) {
+        let ok = 0;
+        for (const d of dirs) {
+          try { await openProject(d); ok++; } catch { /* 单个失败不中断 */ }
+        }
+        setOpenModal(false);
+        showToast(`已批量打开 ${ok} 个项目`);
+        navigate('/');
+      }
+    } catch (e) {
+      showToast(e.message, 'err');
+    } finally {
+      setPicking('');
     }
   }
 
@@ -115,13 +142,20 @@ export default function Sidebar() {
         <div className="modal-mask" onClick={(e) => e.target === e.currentTarget && setOpenModal(false)}>
           <div className="modal">
             <div className="modal-title">打开本地项目</div>
-            <p className="modal-hint">点击「浏览…」从系统弹窗选择目录（可反复选择多个，选过的会留在左侧「最近项目」）；也可以直接粘贴路径（目录内可已有 <code>.memory/</code>，或稍后初始化）。</p>
+            <p className="modal-hint">
+              「浏览文件夹…」选目录；「浏览文件…」选项目里的任意文件（自动取所在目录，<b>可多选批量添加</b>）；也可以直接粘贴路径。
+            </p>
             <div className="form-row">
               <input autoFocus className="input" placeholder="例如 D:\workspace\my-project"
                 value={path} onChange={(e) => setPath(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && doOpen()} />
-              <button className="btn" style={{ flex: 'none' }} disabled={picking} onClick={doPick}>
-                {picking ? '选择中…' : '浏览…'}
+              <button className="btn" style={{ flex: 'none' }} disabled={!!picking} onClick={doPickFolder}
+                title="打开系统文件夹选择弹窗">
+                {picking === 'folder' ? '选择中…' : '浏览文件夹…'}
+              </button>
+              <button className="btn" style={{ flex: 'none' }} disabled={!!picking} onClick={doPickFiles}
+                title="选择项目内任意文件，取其所在目录；多选 = 批量添加">
+                {picking === 'file' ? '选择中…' : '浏览文件…'}
               </button>
             </div>
             <div className="modal-actions">

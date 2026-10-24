@@ -108,6 +108,52 @@ function openBrowser(url) {
   }
 }
 
+/** 常见 Edge / Chrome 安装路径（app 模式宿主，Windows 10/11 一般预装 Edge） */
+function findAppHostWin() {
+  const fs2 = require('fs');
+  const candidates = [];
+  for (const env of ['ProgramFiles(x86)', 'ProgramFiles', 'LOCALAPPDATA']) {
+    if (process.env[env]) {
+      candidates.push(
+        path.join(process.env[env], 'Microsoft', 'Edge', 'Application', 'msedge.exe'),
+        path.join(process.env[env], 'Google', 'Chrome', 'Application', 'chrome.exe'),
+      );
+    }
+  }
+  return candidates.find((p) => fs2.existsSync(p)) || null;
+}
+
+/**
+ * 以「桌面客户端窗口」打开（默认）：Edge / Chrome app 模式——独立窗口、
+ * 独立任务栏图标、无地址栏/标签页；找不到宿主时回退普通浏览器。
+ */
+function openAppWindow(url) {
+  const { spawn } = require('child_process');
+  try {
+    if (process.platform === 'win32') {
+      const exe = findAppHostWin();
+      if (exe) {
+        spawn(exe, [`--app=${url}`, '--window-size=1280,880'], { detached: true, stdio: 'ignore' }).unref();
+        return 'app';
+      }
+    }
+    if (process.platform === 'darwin') {
+      // 优先 Edge / Chrome app 模式，失败回退默认浏览器
+      for (const app of ['Microsoft Edge', 'Google Chrome']) {
+        try {
+          spawn('open', ['-na', app, '--args', `--app=${url}`], { detached: true, stdio: 'ignore' }).unref();
+          return 'app';
+        } catch { /* 尝试下一个 */ }
+      }
+    }
+    openBrowser(url);
+    return 'browser';
+  } catch {
+    openBrowser(url);
+    return 'browser';
+  }
+}
+
 /**
  * 启动 UI。
  * opts: { port = 8787, project = null（设为当前项目）, open = true（自动打开浏览器） }
@@ -139,7 +185,12 @@ function start(opts = {}) {
       console.log('   尚未选择项目：请在界面左侧「打开项目」选择本地目录。');
     }
     console.log('   停止服务：Ctrl + C');
-    if (opts.open !== false) openBrowser(url);
+    if (opts.open !== false) {
+      let how = null;
+      if (opts.browser) openBrowser(url);
+      else how = openAppWindow(url);
+      if (how === 'app') console.log('   已以桌面客户端窗口打开（Edge/Chrome app 模式；--browser 可改用普通浏览器）');
+    }
   });
 
   server.on('error', (e) => {
