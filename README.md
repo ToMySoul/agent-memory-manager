@@ -16,6 +16,7 @@ AMM 像 [Skills Manager](docs/comparison-with-skills-manager.md) 统一管理 SK
 - **一份真相**：项目内 `.memory/` 是唯一真相来源（Single Source of Truth），被 Git 追踪
 - **多端挂载**：通过 Skill + AGENTS.md 让各智能体遵守同一套读写纪律，不改智能体源码
 - **CLI 管理**：`init / validate / status / handoff / sync / adapt`
+- **可视化界面**：`amm ui` 启动本地 Web 管理界面（深色主题，见[界面使用](#界面使用)）
 - **零强制依赖**：不强制 Docker、不强制向量库、不强制云服务；记忆全部是 Markdown；纯 Node.js 无第三方依赖
 - **可选增强**：可挂 MCP 语义记忆，默认不用也能完整工作（见 [docs/mcp-optional.md](docs/mcp-optional.md)）
 
@@ -49,8 +50,50 @@ amm handoff "完成登录模块联调" --from codex --to dsh  # 跨智能体交�
 | `amm handoff "<一句话摘要>" [--from] [--to]` | 生成 `handoffs/YYYY-MM-DD_HHMM_<slug>.md` 交接记录 |
 | `amm sync [--dir <path>]` | 扫描私有记忆（默认 `~/.codex/memories/`），列出最近文件并给出回填建议（不自动改写） |
 | `amm adapt --agent codex,dsh,zcode,grok` | 为各智能体写入 / 打印挂载说明；`--dry-run` 只打印 |
+| `amm ui [--port 8787] [--project <path>] [--no-open]` | 启动本地 Web 管理界面（仅监听 127.0.0.1） |
 
 所有命令支持 `-h` 查看中文帮助；`amm --help` 查看全局帮助。
+
+## 界面使用
+
+`amm ui` 是 CLI 的可视化层：数据真相仍是项目内 `.memory/`（可被 Git 追踪），文件格式与 CLI 完全一致，可交替使用。
+
+```bash
+amm ui                          # 启动并自动打开 http://127.0.0.1:8787
+amm ui --port 9000 --project D:/workspace/my-app   # 指定端口与项目
+amm ui --no-open                # 不自动打开浏览器
+```
+
+- **纯本地**：仅监听 `127.0.0.1`，只读写你选中的项目目录；无登录、无云端、无数据库
+- **界面偏好**：保存在 `~/.amm/ui-state.json`；记忆数据永远只存在项目 `.memory/` 里
+
+### 页面一览
+
+| 页面 | 功能 |
+|---|---|
+| Dashboard | 项目路径、初始化状态、四类记忆计数、状态摘要（有/无阻塞）、最近 5 条交接、快捷操作 |
+| 记忆库 | decisions / gotchas / conventions / current-status 卡片；条目列表（日期 / agent / 摘要 / 影响范围）、详情抽屉、新建条目（追加写入对应 md） |
+| 交接 | `.memory/handoffs/` 列表（按时间倒序）、详情渲染、表单新建交接（与 `amm handoff` 同一模板与命名） |
+| 同步 / 挂载 | 检测 Codex / ZCode / DeepSeek Harness / Grok 的挂载状态（AGENTS.md 段落、技能目录、私有记忆目录）；一键写入 AGENTS.md、安装技能到项目、复制挂载说明、渲染 adapters 文档 |
+| 备份 | **Git 备份仓库**（`.memory/` 独立成私有仓库，一键提交并推送，借鉴 Skills Manager「一份原件 + 同步」；适合开源项目工作区——记忆不混入开源代码）＋ zip 导出；结构校验（等同 `amm validate`） |
+| 设置 | 主题（深色固定 / 跟随系统）、默认 Agent 列表、最近项目数量、语言 |
+
+左侧栏可切换 Agent 视角（只看某个 agent 的记录）与项目工作区（最近项目 / 打开项目…）；顶栏提供全文搜索（跨 `.memory/` 所有 md）与「＋ 新建」快捷入口。
+
+### 从源码构建界面（开发者）
+
+```bash
+npm run build:ui   # 构建 src/ui/client/dist（发布包已内置构建产物）
+npm run dev:ui     # 前端热更新开发模式（代理到本地 amm ui）
+```
+
+### 验收要点
+
+1. `amm ui` 启动并打开页面
+2. 左侧「打开项目…」选择本地目录；未初始化时可在 Dashboard 一键初始化
+3. 记忆库新建条目 → 检查 `.memory/*.md` 确实追加（格式与 CLI 一致）
+4. 交接页新建 handoff → 检查 `.memory/handoffs/YYYY-MM-DD_HHMM_<slug>.md`
+5. 刷新浏览器后数据仍在（读的就是文件）
 
 ## `.memory/` 结构
 
@@ -156,15 +199,18 @@ agent-memory-manager/
 ├── bin/amm                  # CLI 入口
 ├── src/                     # CLI 实现（纯 Node.js，零依赖）
 │   ├── cli.js
-│   ├── commands/            # init / validate / status / handoff / sync / adapt
-│   └── lib/                 # layout / templates / agents
+│   ├── commands/            # init / validate / status / handoff / sync / adapt / ui
+│   ├── lib/                 # layout / templates / agents / memory（CLI 与 UI 共用读写库）/ zip
+│   └── ui/
+│       ├── server/          # 本地 API（无框架，仅 Node http）+ 状态持久化
+│       └── client/          # React + Vite 前端（构建产物随包发布）
 ├── packages/spec/           # 记忆规范（布局、条目格式、适配注册表）
 ├── templates/project-memory/# .memory/ 初始骨架（唯一模板来源）
 ├── skills/shared-memory/    # 标准技能：读写纪律
 ├── adapters/                # codex / dsh / zcode / grok 接入文档
 ├── docs/                    # 架构、对比、MCP 可选说明
 ├── scripts/install.sh       # 安装脚本
-└── test/smoke.js            # 冒烟测试
+└── test/                    # smoke.js（CLI）+ ui-api.js（界面 API 全链路）
 ```
 
 ## 开发与测试
@@ -172,10 +218,12 @@ agent-memory-manager/
 ```bash
 git clone https://github.com/ToMySoul/agent-memory-manager.git
 cd agent-memory-manager
-npm test        # 冒烟测试：在临时目录跑 init/validate/status/handoff/sync/adapt
+npm install            # 仅安装前端构建依赖（src/ui/client）
+npm test               # CLI 冒烟测试 + UI API 全链路测试
+npm run build:ui       # 重新构建前端（改过 src/ui/client 后）
 ```
 
-要求 Node.js ≥ 16；无任何 npm 运行时依赖。
+要求 Node.js ≥ 16；运行时零第三方依赖（构建期仅前端工具链）。
 
 ## License
 

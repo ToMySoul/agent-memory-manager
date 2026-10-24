@@ -38,6 +38,11 @@ const COMMANDS = {
     usage: 'amm adapt --agent codex,dsh,zcode,grok [--dry-run]',
     mod: './commands/adapt.js',
   },
+  ui: {
+    desc: '启动本地 Web 管理界面（默认 http://127.0.0.1:8787）',
+    usage: 'amm ui [--port 8787] [--project <path>] [--no-open]',
+    mod: './commands/ui.js',
+  },
 };
 
 const SHORT_FLAGS = { h: 'help', V: 'version', f: 'force' };
@@ -67,6 +72,7 @@ ${lines.join('\n')}
   amm status
   amm handoff "完成登录模块联调" --from codex --to dsh
   amm adapt --agent codex,zcode
+  amm ui --port 8787
 
 文档：${REPO_URL}
 `);

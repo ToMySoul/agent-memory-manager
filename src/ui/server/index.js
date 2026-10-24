@@ -1,0 +1,138 @@
+'use strict';
+
+/**
+ * amm ui 本地服务器：JSON API + 托管前端构建产物（src/ui/client/dist）。
+ * 仅监听 127.0.0.1，纯 Node http，无第三方依赖。
+ */
+
+const http = require('http');
+const fs = require('fs');
+const path = require('path');
+const { handleApi } = require('./api.js');
+const stateStoreFactory = require('./state.js');
+
+const DIST_DIR = path.join(__dirname, '..', 'client', 'dist');
+
+const MIME = {
+  '.html': 'text/html; charset=utf-8',
+  '.js': 'text/javascript; charset=utf-8',
+  '.mjs': 'text/javascript; charset=utf-8',
+  '.css': 'text/css; charset=utf-8',
+  '.json': 'application/json; charset=utf-8',
+  '.svg': 'image/svg+xml',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.ico': 'image/x-icon',
+  '.woff2': 'font/woff2',
+  '.map': 'application/json',
+};
+
+function serveStatic(req, res, pathname) {
+  let rel = pathname.replace(/^\/+/, '');
+  if (!rel) rel = 'index.html';
+  const abs = path.normalize(path.join(DIST_DIR, rel));
+  // 防目录逃逸：必须位于 dist 内
+  if (!abs.startsWith(DIST_DIR + path.sep) && abs !== DIST_DIR) {
+    res.writeHead(403);
+    res.end('Forbidden');
+    return;
+  }
+  let target = abs;
+  if (!fs.existsSync(target) || fs.statSync(target).isDirectory()) {
+    // SPA 回退：非文件请求交给前端路由
+    target = path.join(DIST_DIR, 'index.html');
+    if (!fs.existsSync(target)) {
+      res.writeHead(503, { 'Content-Type': 'text/plain; charset=utf-8' });
+      res.end('前端尚未构建：请在 AMM 仓库执行 npm run build:ui 后重启 amm ui。');
+      return;
+    }
+  }
+  const ext = path.extname(target).toLowerCase();
+  res.writeHead(200, { 'Content-Type': MIME[ext] || 'application/octet-stream' });
+  fs.createReadStream(target).pipe(res);
+}
+
+function createServer(stateStore) {
+  const store = stateStore || {
+    state: stateStoreFactory.load(),
+    saveState: stateStoreFactory.save,
+    openProject: stateStoreFactory.openProject,
+  };
+
+  return http.createServer((req, res) => {
+    const url = new URL(req.url, 'http://127.0.0.1');
+    if (url.pathname.startsWith('/api/')) {
+      handleApi(req, res, url, store).catch((e) => {
+        res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ error: e.message }));
+      });
+      return;
+    }
+    if (req.method !== 'GET' && req.method !== 'HEAD') {
+      res.writeHead(405);
+      res.end();
+      return;
+    }
+    serveStatic(req, res, url.pathname);
+  });
+}
+
+function openBrowser(url) {
+  const { spawn } = require('child_process');
+  const plat = process.platform;
+  const cmd = plat === 'win32' ? 'cmd' : plat === 'darwin' ? 'open' : 'xdg-open';
+  const args = plat === 'win32' ? ['/c', 'start', '', url] : [url];
+  try {
+    spawn(cmd, args, { detached: true, stdio: 'ignore' }).unref();
+  } catch {
+    /* 打开失败不阻塞服务 */
+  }
+}
+
+/**
+ * 启动 UI。
+ * opts: { port = 8787, project = null（设为当前项目）, open = true（自动打开浏览器） }
+ * 返回 http.Server（已 listen）。
+ */
+function start(opts = {}) {
+  const port = opts.port != null && Number.isFinite(Number(opts.port)) ? Number(opts.port) : 8787;
+  const stateStore = {
+    state: stateStoreFactory.load(),
+    saveState: stateStoreFactory.save,
+    openProject: stateStoreFactory.openProject,
+  };
+  if (opts.project) {
+    const p = path.resolve(String(opts.project));
+    if (fs.existsSync(p) && fs.statSync(p).isDirectory()) {
+      stateStoreFactory.openProject(stateStore.state, p);
+    } else {
+      console.error(`✖  --project 指向的目录不存在：${p}`);
+    }
+  }
+
+  const server = createServer(stateStore);
+  server.listen(port, '127.0.0.1', () => {
+    const url = `http://127.0.0.1:${port}`;
+    console.log(`✔  AMM 界面已启动：${url}`);
+    if (stateStore.state.currentProject) {
+      console.log(`   当前项目：${stateStore.state.currentProject}`);
+    } else {
+      console.log('   尚未选择项目：请在界面左侧「打开项目」选择本地目录。');
+    }
+    console.log('   停止服务：Ctrl + C');
+    if (opts.open !== false) openBrowser(url);
+  });
+
+  server.on('error', (e) => {
+    if (e.code === 'EADDRINUSE') {
+      console.error(`✖  端口 ${port} 已被占用，请换一个：amm ui --port ${port + 1}`);
+    } else {
+      console.error(`✖  启动失败：${e.message}`);
+    }
+    process.exitCode = 1;
+  });
+
+  return server;
+}
+
+module.exports = { createServer, start, DIST_DIR };

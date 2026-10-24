@@ -1,10 +1,9 @@
 'use strict';
 
 const fs = require('fs');
-const path = require('path');
-const layout = require('../lib/layout.js');
-const templates = require('../lib/templates.js');
+const memory = require('../lib/memory.js');
 const agents = require('../lib/agents.js');
+const layout = require('../lib/layout.js');
 
 exports.HELP = `
 用法：amm init [--force] [--with-agents-md]
@@ -27,39 +26,11 @@ exports.run = function ({ flags, cwd }) {
     return 0;
   }
 
-  const vars = {
-    DATE: layout.fmtDate(new Date()),
-    TIME: layout.fmtTime(new Date()),
-    AGENT: 'amm',
-  };
-
-  let created = 0;
-  let filled = 0;
-  let skipped = 0;
-
-  for (const rel of templates.TEMPLATE_FILES) {
-    const target = path.join(memDir, rel);
-    if (fs.existsSync(target)) {
-      if (fs.readFileSync(target, 'utf8').trim() !== '') {
-        skipped++;
-        continue;
-      }
-      fs.writeFileSync(target, templates.render(rel, vars));
-      filled++;
-    } else {
-      fs.mkdirSync(path.dirname(target), { recursive: true });
-      fs.writeFileSync(target, templates.render(rel, vars));
-      created++;
-    }
-  }
-
-  console.log(`✔  初始化完成：新建 ${created} 个文件，覆盖空文件 ${filled} 个，保留已有内容 ${skipped} 个`);
+  const r = memory.initMemory(cwd, { force: !!flags.force, withAgentsMd: !!flags.withAgentsMd });
+  console.log(`✔  初始化完成：新建 ${r.created} 个文件，覆盖空文件 ${r.filled} 个，保留已有内容 ${r.skipped} 个`);
   console.log(`   位置：${memDir}`);
 
-  if (flags.withAgentsMd) {
-    const r = agents.applyAgentsMdSection(cwd, false);
-    console.log('   ' + agents.describeAgentsMdResult(r));
-  }
+  if (r.agentsMd) console.log('   ' + agents.describeAgentsMdResult(r.agentsMd));
 
   console.log('\n下一步：');
   console.log('  amm validate   # 校验结构与条目格式');

@@ -72,6 +72,74 @@ function extractEntries(text) {
   return out;
 }
 
+/**
+ * 解析条目块（含正文）：以 ### 标题切分，正文截止到下一个 #/##/### 标题。
+ * 与 extractEntries 一样自动跳过 ``` / ~~~ 围栏代码块。
+ * 返回 [{ line, heading, ok, date, agent, summary, body }]
+ */
+function parseEntryBlocks(text) {
+  const out = [];
+  const lines = text.split(/\r?\n/);
+  let inFence = false;
+  let cur = null;
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (/^\s*(```|~~~)/.test(line)) {
+      inFence = !inFence;
+      if (cur) cur.body.push(line);
+      continue;
+    }
+    if (!inFence && /^###\s/.test(line)) {
+      if (cur) out.push(finishBlock(cur));
+      const m = ENTRY_HEADING_RE.exec(line);
+      cur = {
+        line: i + 1,
+        heading: line.replace(/^###\s*/, '').trim(),
+        ok: !!m,
+        date: m ? m[1] : undefined,
+        agent: m ? m[2] : undefined,
+        summary: m ? m[3] : undefined,
+        body: [],
+      };
+      continue;
+    }
+    if (!inFence && /^#{1,2}\s/.test(line) && cur) {
+      out.push(finishBlock(cur));
+      cur = null;
+      continue;
+    }
+    if (cur) cur.body.push(line);
+  }
+  if (cur) out.push(finishBlock(cur));
+  return out;
+}
+
+function finishBlock(b) {
+  const body = b.body.join('\n').replace(/^\n+/, '').replace(/\n+$/, '');
+  return { line: b.line, heading: b.heading, ok: b.ok, date: b.date, agent: b.agent, summary: b.summary, body };
+}
+
+/** 解析 current-status.md 的 ## 小节：返回 { '进行中': [...], '阻塞 / 待决': [...], ... } */
+function parseStatusSections(text) {
+  const sections = {};
+  let name = null;
+  for (const line of text.split(/\r?\n/)) {
+    const h = /^##\s+(.*)$/.exec(line);
+    if (h) {
+      name = h[1].trim();
+      sections[name] = sections[name] || [];
+      continue;
+    }
+    if (!name) continue;
+    const t = line.trim();
+    if (!t) continue;
+    if (/^-\s+/.test(t) && !/^-\s*（暂无）/.test(t) && !/^-\s*（待填写）/.test(t)) {
+      sections[name].push(t.replace(/^-\s+/, ''));
+    }
+  }
+  return sections;
+}
+
 function pad(n) {
   return String(n).padStart(2, '0');
 }
@@ -112,6 +180,8 @@ module.exports = {
   handoffsDir,
   listHandoffs,
   extractEntries,
+  parseEntryBlocks,
+  parseStatusSections,
   fmtDate,
   fmtTime,
   fmtCompact,

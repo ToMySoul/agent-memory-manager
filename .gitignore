@@ -8,3 +8,9 @@ Thumbs.db
 
 # 注意：请勿忽略 .memory/
 # 在使用 AMM 的项目里，.memory/ 是唯一真相来源，必须被 Git 追踪。
+
+# AMM 软件仓库自身的 dogfooding 演示数据（真实项目请勿照抄：使用 AMM 的项目里 .memory/ 应当提交）
+/.memory/
+/.agents/
+/.zcode/
+/AGENTS.md

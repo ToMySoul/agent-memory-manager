@@ -1,6 +1,6 @@
 {
   "name": "agent-memory-manager",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "One memory. Every agent. — 多编程智能体统一项目记忆管理 CLI（Codex / DeepSeek Harness / ZCode / Grok）",
   "keywords": [
     "agent",
@@ -36,6 +36,8 @@
     "packages/",
     "docs/",
     "scripts/",
+    "!src/ui/client",
+    "src/ui/client/dist",
     "README.md",
     "README.en.md",
     "LICENSE"
@@ -44,7 +46,10 @@
     "node": ">=16"
   },
   "scripts": {
-    "test": "node test/smoke.js"
+    "test": "node test/smoke.js && node test/ui-api.js",
+    "ui": "node bin/amm ui",
+    "build:ui": "npm --prefix src/ui/client run build",
+    "dev:ui": "npm --prefix src/ui/client run dev"
   },
   "private": false
 }
