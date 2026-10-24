@@ -3,6 +3,7 @@
 > **One memory. Every agent.**
 > 在项目里初始化一次，Codex、DeepSeek Harness（dsh）、ZCode、Grok 等所有编程智能体读写同一份决策、踩坑、约定与进度。
 
+[![CI](https://github.com/ToMySoul/agent-memory-manager/actions/workflows/ci.yml/badge.svg)](https://github.com/ToMySoul/agent-memory-manager/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 ## 为什么需要 AMM？
