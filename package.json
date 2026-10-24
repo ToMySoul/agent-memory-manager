@@ -1,6 +1,6 @@
 {
   "name": "agent-memory-manager",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "One memory. Every agent. — 多编程智能体统一项目记忆管理 CLI（Codex / DeepSeek Harness / ZCode / Grok）",
   "keywords": [
     "agent",

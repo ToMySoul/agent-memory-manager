@@ -195,10 +195,12 @@ function start(opts = {}) {
 
   server.on('error', (e) => {
     if (e.code === 'EADDRINUSE') {
-      console.error(`✖  端口 ${port} 已被占用，请换一个：amm ui --port ${port + 1}`);
-    } else {
-      console.error(`✖  启动失败：${e.message}`);
+      // 已有实例在跑：直接弹客户端窗口接管，退出本进程（桌面软件的预期行为）
+      console.log(`ℹ  端口 ${port} 已有 AMM 在运行，直接打开窗口（无需重复启动）。`);
+      if (opts.open !== false) openAppWindow(`http://127.0.0.1:${port}`);
+      process.exit(0);
     }
+    console.error(`✖  启动失败：${e.message}`);
     process.exitCode = 1;
   });
 
