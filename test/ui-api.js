@@ -176,6 +176,34 @@ async function main() {
     q = await j('POST', '/api/backup/repo/init', { remote: 'not a valid ||| repo' });
     check('非法远程地址被拒绝', q.status === 400);
 
+    console.log('\n== 8.6 多项目共用仓库（分支区分）==');
+    const centralBare = path.join(tmp, 'central-memory.git');
+    fs.mkdirSync(centralBare, { recursive: true });
+    gitSync(['init', '--bare', centralBare], tmp);
+    const p2 = path.join(tmp, 'proj-b');
+    fs.mkdirSync(p2, { recursive: true });
+    spawnSyncNode([path.join(ROOT, 'bin', 'amm'), 'init'], p2);
+    await j('POST', '/api/project/open', { path: p2 });
+    q = await j('POST', '/api/backup/repo/init', { remote: centralBare, branch: 'proj-b' });
+    check('按项目名建分支', q.status === 200 && q.data.status.branch === 'proj-b', JSON.stringify(q.data));
+    await j('POST', '/api/memory/decisions', { agent: 'zcode', summary: '项目B的决策' });
+    q = await j('POST', '/api/backup/push', {});
+    check('项目B推送到自己的分支', q.status === 200 && q.data.status.branch === 'proj-b', JSON.stringify(q.data));
+    const branches = gitSync(['-C', centralBare, 'branch', '--format=%(refname:short)'], tmp);
+    check('中央仓库含 proj-b 分支且不含 master 冲突', branches.out.includes('proj-b'), branches.out + branches.err);
+    const projBTree = gitSync(['-C', centralBare, 'ls-tree', '-r', '--name-only', 'proj-b'], tmp);
+    check('proj-b 分支内容正确（含项目B决策）', /decisions\.md/.test(projBTree.out), projBTree.out + projBTree.err);
+    // 切回主项目，验证同一中央仓库可再推 master 分支（yudao 场景）
+    await j('POST', '/api/project/open', { path: tmp });
+    q = await j('POST', '/api/backup/repo/init', { remote: centralBare });
+    check('主项目改用同一中央仓库', q.status === 200 && q.data.status.remote === centralBare);
+    q = await j('POST', '/api/backup/push', { message: '主项目入中央仓库' });
+    check('主项目推到 master 分支，与 proj-b 并存', q.status === 200, JSON.stringify(q.data));
+    const branches2 = gitSync(['-C', centralBare, 'branch', '--format=%(refname:short)'], tmp);
+    check('中央仓库两分支并存', branches2.out.includes('proj-b') && /master|main/.test(branches2.out), branches2.out);
+    q = await j('POST', '/api/backup/repo/init', { branch: '非法 分支!' });
+    check('非法分支名被拒绝', q.status === 400);
+
     console.log('\n== 9. 刷新后数据仍在（文件即数据）==');
     q = await j('GET', '/api/memory/overview');
     check('decisions=1 · gotchas=2 · handoffs=1', q.data.overview.counts.decisions === 1 && q.data.overview.counts.gotchas === 2 && q.data.overview.counts.handoffs === 1, JSON.stringify(q.data.overview.counts));

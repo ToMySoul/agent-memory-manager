@@ -314,6 +314,10 @@ async function handleApi(req, res, url, stateStore) {
         const memDir = layout.memoryDir(dir);
         if (!fs.existsSync(memDir)) return json(res, 409, { error: '当前项目尚未初始化 .memory/' });
         const remote = String(body.remote || '').trim();
+        const branch = String(body.branch || '').trim();
+        if (branch && !/^[A-Za-z0-9._-]+$/.test(branch)) {
+          return json(res, 400, { error: '分支名只能包含字母、数字、点、下划线和连字符' });
+        }
         const remoteOk = (s) =>
           !/\s/.test(s) && (
             /^(https?:\/\/|git@|ssh:\/\/)/.test(s) || // 远程 URL
@@ -323,7 +327,7 @@ async function handleApi(req, res, url, stateStore) {
         if (remote && !remoteOk(remote)) {
           return json(res, 400, { error: '备份仓库地址看起来不合法（支持 https:// 、git@ 、ssh:// 或本地路径，且不含空格）' });
         }
-        const r = gitbackup.initRepo(memDir, remote || null);
+        const r = gitbackup.initRepo(memDir, remote || null, { branch: branch || null });
         return json(res, 200, r);
       }
 

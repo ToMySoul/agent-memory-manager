@@ -9,6 +9,7 @@ export default function Backup() {
   const [busy, setBusy] = useState('');
   const [repoStatus, setRepoStatus] = useState(null);
   const [remote, setRemote] = useState('');
+  const [branch, setBranch] = useState('');
   const [message, setMessage] = useState('');
   const [log, setLog] = useState(null);
 
@@ -40,7 +41,7 @@ export default function Backup() {
     setBusy('init');
     setLog(null);
     try {
-      const r = await api.post('/api/backup/repo/init', { remote: remote.trim() });
+      const r = await api.post('/api/backup/repo/init', { remote: remote.trim(), branch: branch.trim() });
       setRepoStatus(r.status);
       setLog(r.log.join('\n'));
       showToast('备份仓库已就绪');
@@ -103,12 +104,17 @@ export default function Backup() {
 
             <Field label="备份仓库地址" hint="私有仓库；支持 https:// 、git@ 、ssh:// 或本地裸仓库路径">
               <div className="form-row">
-                <input className="input" placeholder="例如 git@github.com:yourname/yudao-memory.git（建议 Private）"
+                <input className="input" placeholder="例如 git@github.com:yourname/all-memory.git（建议 Private）"
                   value={remote} onChange={(e) => setRemote(e.target.value)} />
                 <button className="btn" style={{ flex: 'none' }} disabled={!st.gitAvailable || busy === 'init'} onClick={initRepo}>
                   {busy === 'init' ? '初始化中…' : st.isRepo ? '更新远程地址' : '初始化仓库'}
                 </button>
               </div>
+            </Field>
+
+            <Field label="分支名" hint="可选；多项目共用同一个备份仓库时填项目名（如 yudao），各项目推到各自分支">
+              <input className="input narrow" placeholder={`默认：${st.branch || 'master'}`}
+                value={branch} onChange={(e) => setBranch(e.target.value)} />
             </Field>
 
             <Field label="提交说明" hint="留空自动生成「AMM 备份 日期 时间」">

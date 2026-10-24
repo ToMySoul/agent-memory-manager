@@ -29,6 +29,12 @@ function gitOk() {
   return !r.failed;
 }
 
+/** 当前分支名（symbolic-ref 在空仓库 / 无提交时也能用） */
+function currentBranch(memoryDir) {
+  const r = runGit(['symbolic-ref', '--short', 'HEAD'], { cwd: memoryDir });
+  return r.failed ? null : r.out;
+}
+
 /** 备份仓库状态：{ gitAvailable, isRepo, branch, remote, dirty, dirtyCount, lastCommit } */
 function status(memoryDir) {
   const st = { gitAvailable: gitOk(), isRepo: false, branch: null, remote: null, dirty: false, dirtyCount: 0, lastCommit: null };
@@ -36,8 +42,7 @@ function status(memoryDir) {
   if (!runGit(['rev-parse', '--git-dir'], { cwd: memoryDir }).failed) st.isRepo = true;
   else return st;
 
-  const branch = runGit(['rev-parse', '--abbrev-ref', 'HEAD'], { cwd: memoryDir });
-  if (!branch.failed) st.branch = branch.out;
+  st.branch = currentBranch(memoryDir);
 
   const remote = runGit(['remote', 'get-url', 'origin'], { cwd: memoryDir });
   if (!remote.failed) st.remote = remote.out;
@@ -57,10 +62,11 @@ function status(memoryDir) {
 }
 
 /**
- * 初始化 / 更新备份仓库：.memory 内 git init（幂等）+ 设置 origin。
- * remoteUrl 为空时只做 init。返回 { status, log: [步骤输出] }
+ * 初始化 / 更新备份仓库：.memory 内 git init（幂等）+ 设置 origin + 可选改分支名。
+ * remoteUrl 为空时只做 init；branch 提供时把当前分支重命名（多项目共用同一仓库时按项目名区分）。
+ * 返回 { status, log: [步骤输出] }
  */
-function initRepo(memoryDir, remoteUrl) {
+function initRepo(memoryDir, remoteUrl, { branch } = {}) {
   const log = [];
   if (!gitOk()) throw new Error('未检测到 git，请先安装 Git');
 
@@ -70,6 +76,21 @@ function initRepo(memoryDir, remoteUrl) {
     const r = runGit(['init'], { cwd: memoryDir });
     if (r.failed) throw new Error(`git init 失败：${r.err || r.out}`);
     log.push(`✔ ${r.out.split(/\r?\n/)[0] || 'git init 完成'}`);
+  }
+
+  if (branch && /^[A-Za-z0-9._-]+$/.test(branch)) {
+    const cur = currentBranch(memoryDir);
+    if (cur && cur !== branch) {
+      const r = runGit(['branch', '-m', branch], { cwd: memoryDir });
+      if (r.failed) throw new Error(`重命名分支失败：${r.err || r.out}`);
+      log.push(`✔ 分支已改为 ${branch}（原 ${cur}）`);
+    } else if (cur) {
+      log.push(`ℹ 分支已是 ${branch}`);
+    } else {
+      const r = runGit(['symbolic-ref', 'HEAD', `refs/heads/${branch}`], { cwd: memoryDir });
+      if (r.failed) throw new Error(`设置分支失败：${r.err || r.out}`);
+      log.push(`✔ 分支已设为 ${branch}`);
+    }
   }
 
   if (remoteUrl) {
@@ -116,9 +137,12 @@ function commitAndPush(memoryDir, { message } = {}) {
 
   const push = runGit(['push', '-u', 'origin', 'HEAD'], { cwd: memoryDir, inputUser: identity, timeout: PUSH_TIMEOUT });
   if (push.failed) {
-    // 远端已有内容（如换机器/手动推过）时先合并再推
+    // 远端已有内容（如换机器/手动推过/其他分支）时先合并再推
     const pull = runGit(['pull', '--rebase', 'origin', 'HEAD'], { cwd: memoryDir, timeout: PUSH_TIMEOUT });
-    if (pull.failed) throw new Error(`推送失败：${push.err || push.out}`);
+    if (pull.failed) {
+      runGit(['rebase', '--abort'], { cwd: memoryDir }); // 清理冲突现场，保持工作区干净
+      throw new Error(`推送失败（远端与本地历史不一致，已中止合并）：${push.err || push.out}`);
+    }
     const retry = runGit(['push', '-u', 'origin', 'HEAD'], { cwd: memoryDir, timeout: PUSH_TIMEOUT });
     if (retry.failed) throw new Error(`推送失败：${retry.err || retry.out}`);
     log.push('✔ 远端有更新，已 rebase 合并后推送成功');
