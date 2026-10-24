@@ -1,0 +1,50 @@
+{
+  "name": "agent-memory-manager",
+  "version": "0.1.0",
+  "description": "One memory. Every agent. — 多编程智能体统一项目记忆管理 CLI（Codex / DeepSeek Harness / ZCode / Grok）",
+  "keywords": [
+    "agent",
+    "memory",
+    "cli",
+    "codex",
+    "deepseek",
+    "zcode",
+    "grok",
+    "agents-md",
+    "skill",
+    "shared-memory",
+    "developer-tools"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ToMySoul/agent-memory-manager.git"
+  },
+  "bugs": {
+    "url": "https://github.com/ToMySoul/agent-memory-manager/issues"
+  },
+  "homepage": "https://github.com/ToMySoul/agent-memory-manager#readme",
+  "bin": {
+    "amm": "bin/amm"
+  },
+  "files": [
+    "bin/",
+    "src/",
+    "templates/",
+    "skills/",
+    "adapters/",
+    "packages/",
+    "docs/",
+    "scripts/",
+    "README.md",
+    "README.en.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=16"
+  },
+  "scripts": {
+    "test": "node test/smoke.js"
+  },
+  "private": false
+}

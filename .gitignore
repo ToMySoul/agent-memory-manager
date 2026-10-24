@@ -1,0 +1,10 @@
+node_modules/
+npm-debug.log*
+*.log
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# 注意：请勿忽略 .memory/
+# 在使用 AMM 的项目里，.memory/ 是唯一真相来源，必须被 Git 追踪。

@@ -1,0 +1,47 @@
+# Agent Memory Manager — 智能体适配注册表
+# 版本：1 ｜ 与 src/lib/agents.js 保持同步
+# adapt_action:
+#   write = amm adapt 直接写入（AGENTS.md 段落 + 复制技能）
+#   print = amm adapt 只打印应复制的路径与配置片段
+
+version: 1
+
+adapters:
+  - id: codex
+    name: OpenAI Codex CLI
+    adapt_action: write
+    agents_md: true
+    skill_mounts:
+      - .agents/skills/shared-memory
+    private_memory: ~/.codex/memories
+    doc: adapters/codex.md
+
+  - id: dsh
+    name: DeepSeek Harness (dsh)
+    adapt_action: print
+    agents_md: true
+    skill_mounts:
+      - .dsh/skills/shared-memory   # 视版本支持情况
+    private_memory: ~/.dsh/memories
+    doc: adapters/deepseek-harness.md
+
+  - id: zcode
+    name: ZCode
+    adapt_action: print
+    agents_md: true
+    skill_mounts:
+      - .zcode/skills/shared-memory  # 项目级技能目录，视版本支持情况
+    private_memory: null
+    doc: adapters/zcode.md
+
+  - id: grok
+    name: Grok / 其他支持 AGENTS.md 的智能体
+    adapt_action: print
+    agents_md: true                 # AGENTS.md 为通用兜底
+    skill_mounts:
+      - .agents/skills/shared-memory
+    private_memory: null
+    doc: adapters/grok.md
+
+# 真相来源（所有智能体相同）：项目 .memory/（Git 追踪）
+# 技能源：本仓库 skills/shared-memory/

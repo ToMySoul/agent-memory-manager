@@ -1,0 +1,9 @@
+# 跨平台确定性换行符：仓库内统一 LF
+* text=auto
+
+# shebang 脚本必须保持 LF，否则 Linux/macOS 上无法执行
+bin/amm text eol=lf
+scripts/install.sh text eol=lf
+
+*.png binary
+*.jpg binary
