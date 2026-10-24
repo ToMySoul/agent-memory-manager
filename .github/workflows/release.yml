@@ -1,0 +1,39 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest   # x64
+          - os: macos-latest     # arm64 (Apple Silicon)
+          - os: macos-13         # x64 (Intel)
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Install & build frontend
+        run: |
+          npm install
+          npm --prefix src/ui/client install
+          npm --prefix src/ui/client run build
+      - run: npm test
+      - name: Build single executable (SEA)
+        run: node scripts/build-sea.mjs
+      - name: Attach to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: build/amm-*
+          fail_on_unmatched_files: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

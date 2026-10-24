@@ -11,8 +11,9 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const templates = require('./templates.js');
+const resources = require('./resources.js');
 
-/** 安装包内技能源目录 */
+/** 技能源目录（源码安装形态；SEA 单文件形态下经 resources.listResourceDir 读取内嵌资产） */
 const SKILL_SRC = path.join(templates.pkgRoot(), 'skills', 'shared-memory');
 
 const ADAPTERS = {
@@ -99,22 +100,21 @@ function applyAgentsMdSection(cwd, dryRun) {
 }
 
 /**
- * 复制技能源目录（skills/shared-memory）到项目内目标目录。
+ * 复制技能（skills/shared-memory）到项目内目标目录。
+ * 源码形态读仓库目录；SEA 单文件形态读内嵌资产。两者落盘内容一致。
  * 返回 { action: 'copied'|'skipped'|'would-copy'|'missing-src', target, files }
  */
 function installSkill(cwd, relTarget, dryRun) {
   const dst = path.join(cwd, relTarget);
-  if (!fs.existsSync(SKILL_SRC)) return { action: 'missing-src', target: SKILL_SRC };
+  const files = resources.listResourceDir('skills/shared-memory');
+  if (files.length === 0) return { action: 'missing-src', target: SKILL_SRC };
   if (fs.existsSync(dst)) return { action: 'skipped', target: relTarget };
   if (dryRun) return { action: 'would-copy', target: relTarget };
   fs.mkdirSync(dst, { recursive: true });
   let n = 0;
-  for (const f of fs.readdirSync(SKILL_SRC)) {
-    const sp = path.join(SKILL_SRC, f);
-    if (fs.statSync(sp).isFile()) {
-      fs.copyFileSync(sp, path.join(dst, f));
-      n++;
-    }
+  for (const f of files) {
+    fs.writeFileSync(path.join(dst, f), resources.readResource(`skills/shared-memory/${f}`));
+    n++;
   }
   return { action: 'copied', target: relTarget, files: n };
 }

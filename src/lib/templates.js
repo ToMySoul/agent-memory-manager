@@ -3,16 +3,17 @@
 /**
  * 模板渲染：templates/project-memory/ 是唯一模板来源，
  * 运行时读取并做 {{VAR}} 占位符替换（DATE / TIME / FROM / TO / SUMMARY 等）。
+ * 通过 resources 抽象读取：源码目录与单文件可执行（SEA 内嵌资产）两种形态通用。
  */
 
-const fs = require('fs');
 const path = require('path');
+const resources = require('./resources.js');
 
 function pkgRoot() {
-  return path.resolve(__dirname, '..', '..');
+  return resources.PKG_ROOT;
 }
 
-const TEMPLATE_DIR = path.join(pkgRoot(), 'templates', 'project-memory');
+const TEMPLATE_DIR = path.join(resources.PKG_ROOT, 'templates', 'project-memory');
 
 /** 相对 TEMPLATE_DIR 的模板文件清单（amm init 逐个落盘） */
 const TEMPLATE_FILES = [
@@ -26,7 +27,7 @@ const TEMPLATE_FILES = [
 
 /** 读取模板并替换 {{KEY}} 占位符 */
 function render(rel, vars) {
-  let text = fs.readFileSync(path.join(TEMPLATE_DIR, rel), 'utf8');
+  let text = resources.readResource(path.join('templates', 'project-memory', rel)).toString('utf8');
   if (vars) {
     for (const [k, v] of Object.entries(vars)) {
       text = text.split('{{' + k + '}}').join(String(v));

@@ -22,20 +22,35 @@ AMM 像 [Skills Manager](docs/comparison-with-skills-manager.md) 统一管理 SK
 
 ## 快速开始（3 步）
 
+### 安装（任选其一）
+
+**方式 A：桌面免安装版（最省事，推荐）**
+
+从 [Releases](https://github.com/ToMySoul/agent-memory-manager/releases) 下载对应平台的单文件程序：
+
+- Windows：`amm-windows-x64.exe` —— **双击直接打开 Web 界面**（也可在终端里当 CLI 用：`amm.exe init` 等）
+- macOS（Apple Silicon）：`amm-macos-arm64`；macOS（Intel）：`amm-macos-x64` —— 首次执行 `chmod +x amm-macos-*`
+
+无需安装 Node.js，模板 / 技能 / 界面全部内嵌在单个文件里。
+
+**方式 B：npm 安装（需要 Node.js ≥ 16）**
+
 ```bash
-# 1. 安装（任选其一）
 npm install -g github:ToMySoul/agent-memory-manager
 # 或：git clone https://github.com/ToMySoul/agent-memory-manager.git
 #     cd agent-memory-manager && npm install -g .
-#     （Linux/macOS 也可用 scripts/install.sh）
+```
 
-# 2. 在你的项目中初始化
+### 初始化你的项目
+
+```bash
 cd your-project
 amm init --with-agents-md
 
-# 3. 日常使用
+# 日常使用
 amm status                                        # 查看记忆概览
 amm handoff "完成登录模块联调" --from codex --to dsh  # 跨智能体交接
+amm ui                                            # 打开本地 Web 界面
 ```
 
 初始化后，把 `.memory/` 与 `AGENTS.md` 提交进 Git，之后任何智能体（以及人）都遵守同一份记忆。

@@ -2,6 +2,19 @@
 
 本文件记录每个版本的显著变化。格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本遵循 [SemVer](https://semver.org/)。
 
+## [0.2.1] — 2026-10-24
+
+### 新增
+
+- **单文件可执行程序（桌面免安装版）**：`scripts/build-sea.mjs`（esbuild + Node SEA + postject）产出 `amm-windows-x64.exe` / `amm-macos-<arch>`，**双击直接打开界面**，无需安装 Node.js；模板、技能、适配文档、前端产物全部内嵌（`src/lib/resources.js` 资源抽象）
+- Release 工作流：打 `v*` 标签自动在 Windows x64 / macOS arm64 / macOS x64 构建并挂到 GitHub Release
+- **系统文件夹选择弹窗**：界面「打开项目」新增「浏览…」按钮（Windows FolderBrowserDialog / macOS osascript / Linux zenity），不再需要手敲路径
+
+### 变更
+
+- `bin/amm` 命令分发改为静态注册表（动态 require 无法被单文件打包）；SEA 形态下无参数启动 = 直接开界面
+- 打开项目弹窗支持「反复浏览多个项目」，选中过的自动进入最近列表
+
 ## [0.2.0] — 2026-10-24
 
 ### 新增

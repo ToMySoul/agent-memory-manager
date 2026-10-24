@@ -24,6 +24,7 @@ export default function Sidebar() {
   const [openModal, setOpenModal] = useState(false);
   const [path, setPath] = useState('');
   const [busy, setBusy] = useState(false);
+  const [picking, setPicking] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -31,6 +32,20 @@ export default function Sidebar() {
     window.addEventListener('amm:open-project', onOpen);
     return () => window.removeEventListener('amm:open-project', onOpen);
   }, []);
+
+  async function doPick() {
+    setPicking(true);
+    try {
+      const r = await api.post('/api/system/pick-folder', {});
+      if (r.error) showToast(r.error, 'err');
+      else if (r.canceled) showToast('已取消选择');
+      else if (r.path) setPath(r.path);
+    } catch (e) {
+      showToast(e.message, 'err');
+    } finally {
+      setPicking(false);
+    }
+  }
 
   async function doOpen() {
     const p = path.trim().replace(/^"|"$/g, '');
@@ -100,10 +115,15 @@ export default function Sidebar() {
         <div className="modal-mask" onClick={(e) => e.target === e.currentTarget && setOpenModal(false)}>
           <div className="modal">
             <div className="modal-title">打开本地项目</div>
-            <p className="modal-hint">输入项目目录的绝对路径（目录内可已有 <code>.memory/</code>，也可以稍后在界面里初始化）。</p>
-            <input autoFocus className="input" placeholder="例如 D:\workspace\my-project"
-              value={path} onChange={(e) => setPath(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && doOpen()} />
+            <p className="modal-hint">点击「浏览…」从系统弹窗选择目录（可反复选择多个，选过的会留在左侧「最近项目」）；也可以直接粘贴路径（目录内可已有 <code>.memory/</code>，或稍后初始化）。</p>
+            <div className="form-row">
+              <input autoFocus className="input" placeholder="例如 D:\workspace\my-project"
+                value={path} onChange={(e) => setPath(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && doOpen()} />
+              <button className="btn" style={{ flex: 'none' }} disabled={picking} onClick={doPick}>
+                {picking ? '选择中…' : '浏览…'}
+              </button>
+            </div>
             <div className="modal-actions">
               <button className="btn" onClick={() => setOpenModal(false)}>取消</button>
               <button className="btn btn-primary" disabled={busy || !path.trim()} onClick={doOpen}>

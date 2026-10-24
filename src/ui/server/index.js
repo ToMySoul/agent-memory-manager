@@ -10,8 +10,10 @@ const fs = require('fs');
 const path = require('path');
 const { handleApi } = require('./api.js');
 const stateStoreFactory = require('./state.js');
+const resources = require('../../lib/resources.js');
 
 const DIST_DIR = path.join(__dirname, '..', 'client', 'dist');
+const DIST_KEY = 'src/ui/client/dist'; // SEA 内嵌资产键前缀
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -30,6 +32,23 @@ const MIME = {
 function serveStatic(req, res, pathname) {
   let rel = pathname.replace(/^\/+/, '');
   if (!rel) rel = 'index.html';
+  const norm = path.normalize(rel).replace(/\\/g, '/');
+
+  if (resources.isSea()) {
+    // 单文件可执行：前端产物从内嵌资产读取（资产键已用 / 分隔，无目录逃逸可能）
+    let key = `${DIST_KEY}/${norm}`;
+    if (!resources.resourceExists(key)) key = `${DIST_KEY}/index.html`; // SPA 回退
+    if (!resources.resourceExists(key)) {
+      res.writeHead(503, { 'Content-Type': 'text/plain; charset=utf-8' });
+      res.end('界面资源缺失：该可执行文件构建不完整，请重新下载。');
+      return;
+    }
+    const ext = path.extname(norm).toLowerCase();
+    res.writeHead(200, { 'Content-Type': MIME[ext] || 'application/octet-stream' });
+    res.end(resources.readResource(key));
+    return;
+  }
+
   const abs = path.normalize(path.join(DIST_DIR, rel));
   // 防目录逃逸：必须位于 dist 内
   if (!abs.startsWith(DIST_DIR + path.sep) && abs !== DIST_DIR) {

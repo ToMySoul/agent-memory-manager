@@ -5,49 +5,57 @@
  * 命令行入口：参数解析与命令分发。纯 Node.js，无第三方依赖。
  */
 
-const pkg = require('../package.json');
+const resources = require('./lib/resources.js');
+
+function pkgVersion() {
+  try {
+    return JSON.parse(resources.readResource('package.json').toString('utf8')).version;
+  } catch {
+    return '0.0.0';
+  }
+}
 
 const COMMANDS = {
   init: {
     desc: '在当前项目创建 .memory/ 骨架（唯一真相来源）',
     usage: 'amm init [--force] [--with-agents-md]',
-    mod: './commands/init.js',
+    load: () => require('./commands/init.js'),
   },
   validate: {
     desc: '校验 .memory/ 结构与条目格式（有 ERROR 时退出码非 0）',
     usage: 'amm validate',
-    mod: './commands/validate.js',
+    load: () => require('./commands/validate.js'),
   },
   status: {
     desc: '查看记忆概览：行数 / 条目数 / 最近交接 / 状态摘要',
     usage: 'amm status',
-    mod: './commands/status.js',
+    load: () => require('./commands/status.js'),
   },
   handoff: {
     desc: '生成跨智能体交接记录 handoffs/YYYY-MM-DD_HHMM_<slug>.md',
     usage: 'amm handoff "<一句话摘要>" [--from <agent>] [--to <agent>]',
-    mod: './commands/handoff.js',
+    load: () => require('./commands/handoff.js'),
   },
   sync: {
     desc: '扫描私有记忆目录（默认 ~/.codex/memories）并给出同步建议',
     usage: 'amm sync [--dir <path>]',
-    mod: './commands/sync.js',
+    load: () => require('./commands/sync.js'),
   },
   adapt: {
     desc: '为指定智能体写入 / 打印 .memory 挂载说明',
     usage: 'amm adapt --agent codex,dsh,zcode,grok [--dry-run]',
-    mod: './commands/adapt.js',
+    load: () => require('./commands/adapt.js'),
   },
   ui: {
     desc: '启动本地 Web 管理界面（默认 http://127.0.0.1:8787）',
     usage: 'amm ui [--port 8787] [--project <path>] [--no-open]',
-    mod: './commands/ui.js',
+    load: () => require('./commands/ui.js'),
   },
 };
 
 const SHORT_FLAGS = { h: 'help', V: 'version', f: 'force' };
 
-const REPO_URL = pkg.homepage || 'https://github.com/ToMySoul/agent-memory-manager';
+const REPO_URL = 'https://github.com/ToMySoul/agent-memory-manager';
 
 function mainHelp() {
   const lines = Object.entries(COMMANDS).map(([k, v]) => `  ${k.padEnd(9)}${v.desc}`);
@@ -118,6 +126,10 @@ function parseArgv(argv) {
 
 function run(argv) {
   if (argv.length === 0) {
+    // 单文件可执行形态（桌面工具）：双击无参数 = 直接打开 Web 界面
+    if (resources.isSea()) {
+      return require('./commands/ui.js').run({ flags: {} });
+    }
     mainHelp();
     return 0;
   }
@@ -127,7 +139,7 @@ function run(argv) {
     return 0;
   }
   if (['--version', '-V', 'version'].includes(first)) {
-    console.log(pkg.version);
+    console.log(pkgVersion());
     return 0;
   }
 
@@ -139,7 +151,7 @@ function run(argv) {
   }
 
   const { flags, positionals } = parseArgv(argv.slice(1));
-  const mod = require(meta.mod);
+  const mod = meta.load();
 
   if (flags.help) {
     console.log(`\n${mod.HELP}\n`);

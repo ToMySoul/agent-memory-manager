@@ -14,6 +14,8 @@ const agents = require('../../lib/agents.js');
 const templates = require('../../lib/templates.js');
 const zip = require('../../lib/zip.js');
 const gitbackup = require('../../lib/gitbackup.js');
+const resources = require('../../lib/resources.js');
+const { pickFolder } = require('../../lib/pickfolder.js');
 
 function json(res, code, obj) {
   const body = JSON.stringify(obj);
@@ -104,6 +106,7 @@ const ROUTES = [
   ['POST', '/api/adapters/agents-md', 'agentsMdApply'],
   ['POST', '/api/adapters/install-skill', 'skillInstall'],
   ['GET', '/api/search', 'search'],
+  ['POST', '/api/system/pick-folder', 'pickFolder'],
   ['GET', '/api/backup.zip', 'backup'],
   ['GET', '/api/backup/status', 'backupGitStatus'],
   ['POST', '/api/backup/repo/init', 'backupRepoInit'],
@@ -257,9 +260,8 @@ async function handleApi(req, res, url, stateStore) {
         const id = String(url.searchParams.get('id') || '');
         const a = agents.ADAPTERS[id];
         if (!a || !a.doc) return json(res, 404, { error: '未知智能体' });
-        const p = path.join(templates.pkgRoot(), a.doc);
-        if (!fs.existsSync(p)) return json(res, 404, { error: `文档缺失：${a.doc}` });
-        return json(res, 200, { id, title: a.name, path: a.doc, content: fs.readFileSync(p, 'utf8') });
+        if (!resources.resourceExists(a.doc)) return json(res, 404, { error: `文档缺失：${a.doc}` });
+        return json(res, 200, { id, title: a.name, path: a.doc, content: resources.readResource(a.doc).toString('utf8') });
       }
 
       case 'agentsMdApply': {
@@ -337,6 +339,12 @@ async function handleApi(req, res, url, stateStore) {
         if (!fs.existsSync(memDir)) return json(res, 409, { error: '当前项目尚未初始化 .memory/' });
         const r = gitbackup.commitAndPush(memDir, { message: body.message });
         r.status = gitbackup.status(memDir);
+        return json(res, 200, r);
+      }
+
+      case 'pickFolder': {
+        // 弹出系统文件夹选择窗口（不阻塞其他请求；用户取消返回 canceled）
+        const r = await pickFolder();
         return json(res, 200, r);
       }
 
